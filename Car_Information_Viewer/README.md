@@ -67,7 +67,7 @@ class Car(BaseModel):
 ### Response hint & query string
 ```python
 from fastapi import FastAPI, Query  #for query string
-@app.get('/cars',response_model=List[Dict[str,Car]])
+@app.get('/cars',response_model=List[Dict[str,Car]]) 
 def get_cars(number:Optional[str] = Query("10",max_length=3)): #max_length 3will restrict the range of query up to 999
     response = []
     for id, car in list(cars.items())[:int(number)]: #To take queried amount of car 
@@ -172,3 +172,58 @@ The actual post form will be as follows.
     ],
     "min_id": 0
     }'
+
+
+### Updating car
+How can you update stuff?<br>
+First thing you need to do is actually adjust your "Car" model to make everything optional.<br>
+Why? because when we are getting the data from update operation,<br>
+we want to make it so that the use can input only specific parts of the Car.<br><br>
+```python
+from fastapi import FastAPI, HTTPException,status
+from pydantic import BaseModel, Field
+from typing import Optional,List,Dict
+from fastapi.encoder import jsonable_encoder
+class Car(BaseModel):
+    make: Optional[str]
+    model: Optional[str]
+    year: Optional[int] = Field(...,ge=1970,lt=2022)
+    price: Optional[float]
+    engine : Optional[str] = "V4"
+    autonomous: Optional[bool]
+    sold : Optional[List[str]]
+
+@app.put("/cars/{id}", response_model=Dict[str,Car])
+def update_car(id: int, car:Car= Body(...) ): #1
+    stored = cars.get(id)
+    if not stored:
+        raise HTTPException(status_code =status.HTTP_404_NOT_FOUND,detail="Couldn't find car with given ID" )
+    stored = Car(**stored) #2
+    print(type(car)) #3
+    new = car.dict(exclude_unset=True) #4
+    new = stored.copy(update=new)
+    cars[id] = jsonable_encoder(new) #5
+    response ={}
+    response[id] = cars[id]
+    return response
+
+
+
+```
+1. Because id is already passed, we don't have to specify Path this time. But if you need validation, you will have to use Path. 
+2. Already stored one.
+3. You can check the type of car variable you get from request. It's 'main.Car'. This indicates that every request is automatically mapped to pydantic model.
+4. this is going to be converted into dictionary. **exclude_unset** set to True will exclude anything that wasn't changed. Note that .dict() and .copy() is basically class method inherited from pydantic's BaseModel.  
+5. You cannot pass a pedantic model into the things that we want to do. What **jsonable_encoder** does is basically take whatever you have like **pydantic models** or things that typically can't be stored in a dictionary. 
+
+
+### Deleting Car
+```python
+@app.delete("/cars/{id}")
+def delete_car(id:int):
+    if not cars.get(id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Couldn't find car with given id")
+
+    del cars[id]
+
+```

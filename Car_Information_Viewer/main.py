@@ -1,17 +1,18 @@
 from fastapi import FastAPI,Query,Path ,HTTPException,status, Body
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel,Field
 from typing import Optional, List,Dict
 from database import cars
 
 class Car(BaseModel):
-    make: str
-    model: str 
-    year: int = Field(...,ge=1970,lt=2022) 
+    make: Optional[str]
+    model: Optional[str] 
+    year: Optional[int] = Field(...,ge=1970,lt=2022) 
 
-    price: float
+    price: Optional[float]
     engine: Optional[str] = "V4" #Default value
-    autonomous: bool
-    sold: List[str]
+    autonomous: Optional[bool]
+    sold: Optional[List[str]]
     
 
 app = FastAPI()
@@ -48,3 +49,25 @@ def add_cars(body_cars: List[Car], min_id:Optional[int] = Body(0)): #min_id is f
             min_id+=1
         cars[min_id] = car
         min_id +=1 
+        
+        
+@app.put("/cars/{id}", response_model=Dict[str,Car])
+def update_car(id: int, car:Car= Body(...) ): #1
+    stored = cars.get(id)
+    if not stored:
+        raise HTTPException(status_code =status.HTTP_404_NOT_FOUND,detail="Couldn't find car with given ID" )
+    stored = Car(**stored) #2
+    print(type(car))
+    new = car.dict(exclude_unset=True) #3
+    new = stored.copy(update=new)
+    cars[id] = jsonable_encoder(new) #4 
+    response ={}
+    response[id] = cars[id]
+    return response
+
+@app.delete("/cars/{id}")
+def delete_car(id:int):
+    if not cars.get(id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Couldn't find car with given id")
+
+    del cars[id]
