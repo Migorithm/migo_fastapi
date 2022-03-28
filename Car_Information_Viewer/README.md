@@ -178,7 +178,7 @@ The actual post form will be as follows.
 How can you update stuff?<br>
 First thing you need to do is actually adjust your "Car" model to make everything optional.<br>
 Why? because when we are getting the data from update operation,<br>
-we want to make it so that the use can input only specific parts of the Car.<br><br>
+we want to make it so that the user can input only specific parts of the Car.<br><br>
 ```python
 from fastapi import FastAPI, HTTPException,status
 from pydantic import BaseModel, Field
@@ -226,4 +226,330 @@ def delete_car(id:int):
 
     del cars[id]
 
+```
+
+
+## Frontend side
+Until this point, we've been returning JSON in our argument. That works, but in order to have a frontend with fastAPI, we need to start returning HTML templates. FastAPI can utilize Jinja2. And the way it works is it has a specific directory called **"templates"**. And that is going to contain all of your HTML, and another directory called **static**.
+
+```sh
+cd Car_Information_Viewer
+mkdir templates
+mkdir static
+```
+
+```python
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+
+#1
+templates = Jinja2Templates(directory="templates")
+
+#2
+app =FastAPI()
+app.mount("/static",StaticFiles(directory="static"),name="static")
+
+```
+1. We need to create variable to store Jinja2Templates class object. This will allow us to return a template response and fill in the data with all we need. 
+2. Style sheet, CSS files, pictures and so on will be mounted in this way. 
+<br><br>
+
+Now, things are ready. Let's go over to templates directory and create a new file called *home.html*<br>
+In there, you just press exclamation mark(!) and it will generate html template. Type in whatever you want and go back to:<br>
+**main.py**:
+```python
+#1
+from fastapi import Request
+from starlette.responses import HTMLResponse
+
+from fastapi.templating import Jinja2Templates
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get('/', response_class=HTMLResponse)#2
+def root(request:Request ):#1
+    return templates.TemplateResponse("home.html",{"request":request})
+```
+1. Note that Request object is passed as argument. Once it's passed, we're actually going to use it when serving up our template. With Request object, you can get:
+- client host by - request.client.host
+- method type by - request.method 
+and so on. <br>
+With that though, if you get data from the Request object, it won't be validated, converted or documented by FastAPI.<br>
+
+2. Instead of TemplateResponse, we specify response_class with HTMLResponse. Reason being is editor support and to make sure that no cutting off of data is done. (HTMLResponse is broader class)
+<br>
+
+Before we run our application, we actually need to install Jinja2 with pip. 
+```sh
+pip install jinja2
+```
+
+### Using jinja2 template
+Use double braces - {{}}:
+```python
+@app.get('/',response_class=HTMLResponse)
+def root(request:Request):
+    return templates.TemplateResponse("home.html",{"request":request,"title":"FastAPI - Home"})
+```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title|default("Document")}}</title> <!-- -->
+</head>
+<body>
+    <h1>Welcome to your first app in FastAPI!</h1>
+    
+</body>
+</html>
+```
+Note that when you pass in variables and its values, it is wrapped in dictionary but you can directly access them without using "dict["key"]" syntax.<br><br>
+
+Notice too, that {{title | default("Document")}} means that if "title" variable is passed, it will use the value of "title" but if not, it will use default value set to "Document"
+
+
+### Header & Footer 
+We can create basic page every time we need new page.<br>
+But what if we need 10 or 20 or 30 pages?<br>
+Plus what if we are going to have the same header for all the pages?<br>
+Well, actually Jinja allows 
+- "include" 
+- "extends" 
+for the reuse of files. 
+<br>
+
+```sh
+cd /Car_Information_Viewer/templates
+touch header.html
+touch footer.html
+```
+<br><br>
+
+We're going to create header and footer as follows
+**header.html**:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+``` 
+<br>
+
+**footer.html**:
+```html
+</body>
+</html>
+```
+
+And let's include bootstrap CDN. 
+- CSS : Included right below the head
+- JS : Right at the bottom of the body
+<br>
+
+**header.html**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+```
+<br>
+
+**footer.html**:
+```html
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous">
+</body>
+</html>
+```
+
+What if you want to have separate style sheet?
+```html
+<link rel="stylesheet" href="{{url_for('static',path='/style.css')}}" type="text/css">
+```
+
+### include
+Let's use header and footer on our files.<br>
+**home.html**:
+```html
+{% include 'header.html' %}
+<h3> Welcome to your first app in FastAPI </h3>
+{% include 'footer.html' %}
+```
+
+
+### Navigation bar
+Navigation bar contains logo, links, headers, the search bar and so on. Let's create a new html called 'navbar.html'
+```sh
+touch navbar.html
+```
+
+And on Bootstrap website, you can head on over to:
+
+    docs/{version}/components/navbar 
+    
+for reference.<br>
+Example: **navbar.html**
+```html
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container fluid">
+            <a class="navbar-brand" href="/cars">CarInformer</a>
+        <ul class="navbar-nav me-auto mb-2 mg-lg-0">
+            <li class="nav-item">
+                <a class="nav-link" href="/create">Create Car</a>
+            </li>
+        </ul>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
+            <form action="" class="d-flex" style="margin: 0.5em;">
+                <input class="form-control me-2" type="search" placeholder="Get car by ID..." name="id" aria-label="Search">
+                <button class="btn btn-outline-light" type="submit">Search</button>
+            </form>
+        </div>
+    </div>
+</nav>
+```
+
+CSS example: static/style.css
+```css
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5em;
+}
+
+.navbar-dark .navbar-nav .nav-link { /* -- 1 -- */
+    color: white;
+}
+```
+1. Why is this long? That's for specificality of identifier. 
+
+### Creating the main page 
+currently, we have the following endpoints:
+- /
+- /cars
+
+For get('/cars') the return value is just List of dictionary.<br> 
+```python
+@app.get('/cars',response_model=List[Dict[str,Car]])
+def get_cars(number:Optional[str] = Query("10",max_length=3)):
+    response = []
+    for id, car in list(cars.items())[:int(number)]: 
+        to_add ={}
+        to_add[id] = car
+        response.append(to_add)
+    return response
+```
+So we need some changes so it actually returns HTML response.<br>
+
+
+**/templates/index.html**
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<p>{{cars}}</p> <!-- Will pass Cars object into this variable-->
+{% include 'footer.html' %}
+```
+```python
+@app.get('/cars',response_class=HTMLResponse)
+def get_cars(request:Request, number:Optional[str] = Query("10",max_length=3)):
+    response = []
+    for id, car in list(cars.items())[:int(number)]: 
+        to_add ={}
+        to_add[id] = car
+        response.append(to_add)
+    return templates.TemplateReponse("index.html",
+        {"request":request,
+        "cars":response, #We will pass response to variable(cars)
+        "title":"Home"})
+```
+
+
+### Redirect
+Redict is a special type of response that's included in fastAPI.<br>
+Say the moment any client gets in on the website ('/') and you want to redirect their get request to '/cars'
+```python
+from fastapi.responses import RedirectResponse
+@app.get('/', response_class=RedirectResponse)
+def root(request:Request):
+    return RedirectResponse(url="/cars")
+```
+When redirected, your server will log the following:
+    
+    INFO:     127.0.0.1:64181 - "GET / HTTP/1.1" 307 Temporary Redirect
+
+
+### Creating Car component
+Remember, get('/cars') returns a list of cars. So, we're gonna loop through the list to get a car and display them properly.<br>
+
+template/car.html
+```html
+<div>
+    <h2>{{car["year"]}} {{car["make"]}} {{car["model"]}}</h2>
+
+    <p><strong>Price: {{car["price"]}}$</strong></p>
+    <p><strong>{{car["engine"]}}</strong> engine</p>
+    {% if car["autonomous"] %}
+        <p>This car has autonomous functionality</p>
+    {% else %}
+        <p>This car <strong>does not have autonomous functionality</strong></p>
+    {% endif %}
+
+    {% if car["sold"] %}
+        <p>Sold in {{car["sold"]| join(',')}}</p> <!-- build in jinja2 function. And note that key must be double-quoted -->
+    {% else %}
+        <p>Not currently available.</p>
+    {% endif %}
+    <p>ID: {{id}}</p>
+</div>
+```
+<br>
+
+templates/index.html
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container-fluid">
+    {% for id, car in cars %}
+        <div class="row justify-content-center" style="text-align: center;"> <!-- To make sure it is centered and vertically aligned -->
+            <div class="col col-sm-6" style="border: 1px solid black; margin: 1em 0.5em; border-radius: 10px"> <!-- Oncec it hits the small breakpoint, it will only take up 6 of default 12 given rows in bootstrap  -->
+                {% include 'car.html' %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% include 'footer.html' %}
+
+{% include 'footer.html' %}
+```
+
+In order for the loop to work, instead of appending dictionaries, we will turn it into list  of tuple with each item in the list being a tuple of id and the Car. 
+
+```python
+@app.get('/cars',response_class=HTMLResponse)
+def get_cars(request:Request, number:Optional[str] = Query("10",max_length=3)):
+    response = []
+    for id, car in list(cars.items())[:int(number)]: 
+        response.append(id,car)
+    return templates.TemplateResponse("index.html",
+        {"request":request,
+        "cars":response, #We will pass response to variable(cars)
+        "title":"Home"})
 ```

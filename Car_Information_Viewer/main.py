@@ -1,7 +1,11 @@
-from fastapi import FastAPI,Query,Path ,HTTPException,status, Body
+from fastapi import FastAPI,Query,Path ,HTTPException,status, Body,Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel,Field
 from typing import Optional, List,Dict
+from starlette.responses import HTMLResponse
 from database import cars
 
 class Car(BaseModel):
@@ -14,21 +18,26 @@ class Car(BaseModel):
     autonomous: Optional[bool]
     sold: Optional[List[str]]
     
+templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
+app.mount("/static",StaticFiles(directory="static"),name="static")
 
-@app.get('/')
-def root():
-    return {"Welcome to": "your first API in FastAPI!"}
+@app.get('/',response_class=RedirectResponse)
+def root(request:Request):
+    
+    return RedirectResponse(url="/cars")
 
-@app.get('/cars',response_model=List[Dict[str,Car]])
-def get_cars(number:Optional[str] = Query("10",max_length=3)):
+
+@app.get('/cars',response_class=HTMLResponse)
+def get_cars(request:Request, number:Optional[str] = Query("10",max_length=3)):
     response = []
     for id, car in list(cars.items())[:int(number)]: 
-        to_add ={}
-        to_add[id] = car
-        response.append(to_add)
-    return response
+        response.append((id,car))
+    return templates.TemplateResponse("index.html",
+        {"request":request,
+        "cars":response, #We will pass response to variable(cars)
+        "title":"Home"})
 
 
 @app.get("/cars/{id}",response_model=Car)
