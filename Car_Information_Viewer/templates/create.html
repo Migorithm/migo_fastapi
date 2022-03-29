@@ -1,0 +1,60 @@
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container" style="margin-top: 1em;"> <!-- To make a bit of space-->
+    <form action="/cars" method="POST">
+        <div class="mb-3">
+            <label for="make" class="form-label">Make</label>
+            <input type="text" class="form-control" name="make" id="make" aria-describedby="makeDesc">
+            <div id="makeDesc" class="form-text">The make of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="model" class="form-label">Model</label>
+            <input type="text" class="form-control" name="model" id="model" aria-describedby="modelDesc">
+            <div id="modelDesc" class="form-text">The model of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="year" class="form-label">Year</label>
+            <input type="text" class="form-control" name="year" id="year" aria-describedby="yearDesc">
+            <div id="yearDesc" class="form-text">The year of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="price" class="form-label">price</label>
+            <input type="text" class="form-control" name="price" id="price" aria-describedby="priceDesc">
+            <div id="priceDesc" class="form-text">The price of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="engine" class="form-label">Engine</label>
+            <input type="text" class="form-control" name="engine" id="engine" aria-describedby="engineDesc">
+            <div id="engineDesc" class="form-text">The engine of the car</div>
+        </div>
+
+        <!-- Select field -->
+        <div class="mb-3">
+            <label for="autonomous" class="form-label">Is the car autonomous?</label>
+            <select class="form-select" name="autonomous" id="autonomous">
+                <option selected value="true">Yes</option>
+                <option value="false">No</option>
+            </select>
+        </div>
+
+        <!-- Checkbox -->
+        <div class="mb-3">
+            <p>Where is the car sold?</p>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Africa (AF)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Antarctica (AN)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Asia (AS)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Europe (EU)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">North America (NA)<br> 
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Oceania (OC)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">South America (SA)<br>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+</div>
+
+{% include 'footer.html' %}
+
+<!-- Try to make name and id match Pydantic model. -->

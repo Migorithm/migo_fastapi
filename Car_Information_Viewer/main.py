@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Query,Path ,HTTPException,status, Body,Request
+from fastapi import FastAPI,Query,Path ,HTTPException,status, Body,Request,Form
 from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -40,25 +40,42 @@ def get_cars(request:Request, number:Optional[str] = Query("10",max_length=3)):
         "title":"Home"})
 
 
-@app.get("/cars/{id}",response_model=Car)
-def get_car_by_id(id:int = Path(...,ge=0,lt=1000)):
+@app.get("/cars/{id}",response_class=HTMLResponse)
+def get_car_by_id(request:Request, id:int = Path(...,ge=0,lt=1000)):
     car = cars.get(id)
+    response= templates.TemplateResponse("search.html",{"request":request, "car":car, "id":id,"title":"Search Car"})
     if not car:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Could not find car by ID.")
-    return car
+        response.status_code = status.HTTP_404_NOT_FOUND #1
+    return response
+
+@app.get('/create',response_class=HTMLResponse)
+def create_car(request: Request):
+    return templates.TemplateResponse("create.html",{"request":request,"title":"Create Car"})
 
 
-@app.post("/cars",status_code=status.HTTP_201_CREATED) #define the default status code
-def add_cars(body_cars: List[Car], min_id:Optional[int] = Body(0)): #min_id is for offset
-    if len(body_cars) < 1:
+@app.post("/cars",status_code=status.HTTP_201_CREATED) 
+def add_cars(
+    make:Optional[str] = Form(...),  #1
+    model:Optional[str] = Form(...),
+    year:Optional[int] = Form(...),
+    price:Optional[float] = Form(...),
+    engine:Optional[str] = Form(...),
+    autonomous:Optional[bool] = Form(...),
+    sold: Optional[List[str]] = Form(None),  #Default value None. Note that value is obtained from value part of checkbox. 
+    min_id:Optional[int] = Body(0)):
+
+    #2
+    body_cars = [Car(make=make,model=model,year=year,price=price,engine=engine,autonomous=autonomous,sold=sold)] #Pydantic model
+
+    if len(body_cars) < 1 : 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="No cars to add")
-    min_id = len(cars.values()) + min_id  #Don't wanna add a car that already exists in the database
-    for car in body_cars :
-        while cars.get(min_id): #Don't wanna add a car that already exists in the database
+    min_id = len(cars.values()) + min_id
+    for car in body_cars:
+        while cars.get(min_id):
             min_id+=1
         cars[min_id] = car
-        min_id +=1 
-        
+        min_id+=1
+    return RedirectResponse(url="/cars",status_code=302) #3
         
 @app.put("/cars/{id}", response_model=Dict[str,Car])
 def update_car(id: int, car:Car= Body(...) ): #1
@@ -80,3 +97,9 @@ def delete_car(id:int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Couldn't find car with given id")
 
     del cars[id]
+    
+    
+
+@app.post('/search', response_class=RedirectResponse)
+def search_cars(id:str=Form(...)):
+    return RedirectResponse("/cars/" + id, status_code=302) 

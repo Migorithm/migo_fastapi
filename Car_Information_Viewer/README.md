@@ -553,3 +553,203 @@ def get_cars(request:Request, number:Optional[str] = Query("10",max_length=3)):
         "cars":response, #We will pass response to variable(cars)
         "title":"Home"})
 ```
+
+
+### Adding a search feature
+Let's implement a form into our actual search feature in navigation bar. From there, it's going to send it to a route which we're going to handle through fastAPI.<br><br>
+
+First, we need to implement an "action" and a "method"<br>
+templates/navbar.html:
+```html
+<form action="/search" method="POST" class="d-flex" style="margin: 0.5em;"> <!-- -->
+    <input class="form-control me-2" type="search" placeholder="Get car by ID..." name="id" aria-label="Search">
+    <button class="btn btn-outline-light" type="submit">Search</button>
+</form>
+```
+The reason we use '/search' is we need to send this data in a request body which then needs to be sent to another URL to display the information. <br><br>
+
+And then let's create a new route to get cars.
+```python
+from fastapi import Form
+@app.post('/search', response_class=RedirectResponse)
+def search_cars(id:str=Form(...)) #1
+    return RedirectResponse("/cars/" + id, status_code=302) #2
+
+```
+1. to get id, we will use form data.
+2. We need to pass in a status code. Otherwise, it's going to maintain HTTP method(POST request in this case!). 
+<br>
+
+Now we have post route set up and corresponding form. Let's go ahead and create a search page for it to work.<br>
+templates/search.html:
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container">
+    {% if car %}
+        {% include 'car.html' %}
+    {% else %}
+        <h2>Oops! We couldn't find a car with that ID. Please try again.</h2>
+    {% endif %}
+</div>
+{% include 'footer.html' %}
+```
+<br>
+
+And lastly, We will modify **get('/cars/{id}')** route. 
+```python
+@app.get("/cars/{id}",response_class=HTMLResponse)
+def get_car_by_id(request:Request, id:int = Path(...,ge=0,lt=1000)):
+    car = cars.get(id)
+    response= templates.TemplateResponse("search.html",{"request":request, "car":car, "id":id,"title":"Search Car"})
+    if not car:
+        response.status_code = status.HTTP_404_NOT_FOUND #1
+    return response
+```
+1. you can set status_code in this way as well. 
+
+
+If you want to improve the visualization, go with the following html file.<br>
+templates/search.html
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<style>
+    <!-- body {
+        width: 100%;
+        height: 100vh; 
+        display: flex;
+        flex-direction: column;
+    } -->
+    
+    #carcon {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+    }
+
+</style>
+<div class="container" id="carcon">
+    {% if car %}
+        {% include 'car.html' %}
+    {% else %}
+        <h2>Oops! We couldn't find a car with that ID. Please try again.</h2>
+    {% endif %}
+</div>
+{% include 'footer.html' %}
+```
+
+### Creating a car
+Let's make a dedicated page which will be linked to '/create' that will send post request to create a car object.<br>
+/templates/create.html:
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container" style="margin-top: 1em;"> <!-- To make a bit of space-->
+    <form action="/cars" method="POST">
+        <div class="mb-3">
+            <label for="make" class="form-label">Make</label>
+            <input type="text" class="form-control" name="make" id="make" aria-describedby="makeDesc">
+            <div id="makeDesc" class="form-text">The make of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="model" class="form-label">Model</label>
+            <input type="text" class="form-control" name="model" id="model" aria-describedby="modelDesc">
+            <div id="modelDesc" class="form-text">The model of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="year" class="form-label">Year</label>
+            <input type="text" class="form-control" name="year" id="year" aria-describedby="yearDesc">
+            <div id="yearDesc" class="form-text">The year of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="price" class="form-label">price</label>
+            <input type="text" class="form-control" name="price" id="price" aria-describedby="priceDesc">
+            <div id="priceDesc" class="form-text">The price of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="engine" class="form-label">Engine</label>
+            <input type="text" class="form-control" name="engine" id="engine" aria-describedby="engineDesc">
+            <div id="engineDesc" class="form-text">The engine of the car</div>
+        </div>
+
+        <!-- Select field --> 
+       
+        <div class="mb-3">
+            <label for="autonomous" class="form-label">Is the car autonomous?</label>
+            <select class="form-select" name="autonomous" id="autonomous">
+                <option selected value="true">Yes</option>  <!-- converted into boolean by fastapi-->
+                <option value="false">No</option>    <!-- boolean -->
+            </select>
+        </div>
+
+        <!-- Checkbox -->
+        <div class="mb-3">
+            <p>Where is the car sold?</p>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Africa (AF)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Antarctica (AN)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Asia (AS)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Europe (EU)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">North America (NA)<br> 
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">Oceania (OC)<br>
+                <input class="form-check-input" type="checkbox" name="sold" value="AF">South America (SA)<br>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+</div>
+
+{% include 'footer.html' %}
+
+```
+<br>
+
+This form sends the data to the '/cars'. Now, one very important thing we need to keep in mind is we're no longer sending a list of cars or sending body data. We're sending Form data.<br><br>
+So you should replace argument that's set to following:
+
+```python
+@app.post("/cars",status_code=status.HTTP_201_CREATED) #define the default status code
+def add_cars(body_cars: List[Car], min_id:Optional[int] = Body(0)):
+
+```
+
+With the following:
+```python
+@app.post("/cars",status_code=status.HTTP_201_CREATED) 
+def add_cars(
+    make:Optional[str] = Form(...),  #1
+    model:Optional[str] = Form(...)
+    year:Optional[str] = Form(...),
+    price:Optional[float] = Form(...),
+    engine:Optional[str] = Form(...),
+    autonomous:Optional[bool] = Form(...), #4
+    sold: Optional[List[str]] = Form(None),  #Default value None. Note that value is obtained from value part of checkbox. 
+    min_id:Optional[int] = Body(0)):
+
+    #2
+    body_cars = [Car(make=make,model=model,year=year,price=price,engine=engine,autonomous=autonomous,sold=sold)] #Pydantic model
+
+    if len(body_cars) < 1 : 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="No cars to add")
+    min_id = len(cars.values()) + min_id
+    for car in body_cars:
+        while cars.get(min_id):
+            min_id+=1
+        cars[min_id] = car
+        min_id+=1
+    return RedirectResponse(url="/cars",status_code=302) #3
+
+
+```
+1. Remember, in Pydantic model, (...) indicates a field that is required but can be set to None. Used with Optional it will mean required optional fields. 
+
+2. The last thing we want to do is actually create variables. 
+
+3. It's maintaining HTTP method if you are using default 307 code. In order to have a GET route, we need the 302 tag. 
+
+4. for autonomous=1, True, true, on, yes or any other case variation (uppercase, first letter in uppercase, etc), your function will see the parameter short with a bool value of True. Otherwise as False.
