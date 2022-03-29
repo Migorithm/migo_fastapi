@@ -60,7 +60,7 @@ def add_cars(
     year:Optional[int] = Form(...),
     price:Optional[float] = Form(...),
     engine:Optional[str] = Form(...),
-    autonomous:Optional[bool] = Form(...),
+    autonomous:Optional[bool] = Form(...), 
     sold: Optional[List[str]] = Form(None),  #Default value None. Note that value is obtained from value part of checkbox. 
     min_id:Optional[int] = Body(0)):
 
@@ -76,20 +76,38 @@ def add_cars(
         cars[min_id] = car
         min_id+=1
     return RedirectResponse(url="/cars",status_code=302) #3
+     
         
-@app.put("/cars/{id}", response_model=Dict[str,Car])
-def update_car(id: int, car:Car= Body(...) ): #1
-    stored = cars.get(id)
-    if not stored:
-        raise HTTPException(status_code =status.HTTP_404_NOT_FOUND,detail="Couldn't find car with given ID" )
-    stored = Car(**stored) #2
-    print(type(car))
-    new = car.dict(exclude_unset=True) #3
+@app.get('/edit', response_class = HTMLResponse)
+def edit_car(request:Request, id:int = Query(...)):
+    car = cars.get(id)
+    if not car:
+        return templates.TemplateResponse("search.html",{"request":request,"id":id,"title":"Edit car"},status_code=status.HTTP_404_NOT_FOUND )
+    return templates.TemplateResponse("edit.html",{"request":request,"car":car,"id":id,"title":"Edit car"})
+    
+        
+
+@app.post('/cars/{id}',response_class=HTMLResponse)
+def update_car(request:Request, id:int,
+    make:Optional[str] = Form(None),  #1
+    model:Optional[str] = Form(None),
+    year:Optional[str] = Form(None),
+    price:Optional[float] = Form(None),
+    engine:Optional[str] = Form(None),
+    autonomous:Optional[bool] = Form(None), 
+    sold: Optional[List[str]] = Form(None)):
+
+    stored= cars.get(id)
+    if not stored: 
+        return templates.TemplateResponse('search.html',{"request":request, "id":id,"title":"Edit car"}, status_code=status.HTTP_404_NOT_FOUND)
+    stored = Car(**dict(stored)) #2
+    car = Car(make=make,model=model,year=year,price=price,engine=engine,autonomous=autonomous,sold=sold)
+    new = car.dict(exclude_unset=True)
     new = stored.copy(update=new)
-    cars[id] = jsonable_encoder(new) #4 
+    cars[id] = jsonable_encoder(new)
     response ={}
     response[id] = cars[id]
-    return response
+    return RedirectResponse(url="/cars",status_code=302) #3
 
 @app.delete("/cars/{id}")
 def delete_car(id:int):

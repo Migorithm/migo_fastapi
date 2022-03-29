@@ -753,3 +753,57 @@ def add_cars(
 3. It's maintaining HTTP method if you are using default 307 code. In order to have a GET route, we need the 302 tag. 
 
 4. for autonomous=1, True, true, on, yes or any other case variation (uppercase, first letter in uppercase, etc), your function will see the parameter short with a bool value of True. Otherwise as False.
+
+
+### Edit car feature 
+Let's jump right into 'template/car.html' and add edit button.<br>
+The editing feature will be made by making a route to edit.<br>
+template/car.html:
+```html
+<style>
+    .btn {
+        margin: 0.2em;
+    }
+</style> <!-- 1 -->
+
+<div>
+    <h2>{{car["year"]}} {{car["make"]}} {{car["model"]}}</h2>
+
+    <p><strong>Price: {{car["price"]}}$</strong></p>
+    <p><strong>{{car["engine"]}}</strong> engine</p>
+    {% if car["autonomous"] %}
+        <p>This car has autonomous functionality</p>
+    {% else %}
+        <p>This car <strong>does not have autonomous functionality</strong></p>
+    {% endif %}
+
+    {% if car["sold"] %}
+        <p>Sold in {{car["sold"]| join(',')}}</p>
+    {% else %}
+        <p>Not currently available.</p>
+    {% endif %}
+    <p>ID: {{id}}</p>
+
+    <a class="btn btn-dark" href="/edit?id={{id}}">EDIT</a> <!-- 2 -->
+</div>
+
+```
+1. style for better space gap
+2. Note that href includes query string
+
+
+#### Creating edit route
+```python
+@app.get('/edit', response_class = HTMLResponse)
+def edit_car(request:Request, id:int = Query(...)):
+    car = cars.get(id)
+    
+    #1
+    if not car:
+        return templates.TemplateResponse("search.html",{"request":request,"id":id,"title":"Edit car"},status_code=status.HTTP_404_NOT_FOUND )
+    return templates.TemplateResponse("edit.html",{"request":request,"car":car,"id":id,"title":"Edit car"})
+    
+    
+
+```
+1. If we can't find the car, we will return search which will return customized message. 
