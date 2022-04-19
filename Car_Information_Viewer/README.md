@@ -214,7 +214,7 @@ def update_car(id: int, car:Car= Body(...) ): #1
 2. Already stored one.
 3. You can check the type of car variable you get from request. It's 'main.Car'. This indicates that every request is automatically mapped to pydantic model.
 4. this is going to be converted into dictionary. **exclude_unset** set to True will exclude anything that wasn't changed. Note that .dict() and .copy() is basically class method inherited from pydantic's BaseModel.  
-5. You cannot pass a pedantic model into the things that we want to do. What **jsonable_encoder** does is basically take whatever you have like **pydantic models** or things that typically can't be stored in a dictionary. 
+5. You cannot pass a pydantic model into the things that we want to do. What **jsonable_encoder** does is basically take whatever you have like **pydantic models** or things that typically can't be stored in a dictionary. 
 
 
 ### Deleting Car
@@ -276,6 +276,9 @@ def root(request:Request ):#1
 - method type by - request.method 
 and so on. <br>
 With that though, if you get data from the Request object, it won't be validated, converted or documented by FastAPI.<br>
+<br>
+
+**IMPORTANT**: you always have to pass request as a key-value pair(**{"request":request}**) when serving a Jinja template to the user.
 
 2. Instead of TemplateResponse, we specify response_class with HTMLResponse. Reason being is editor support and to make sure that no cutting off of data is done. (HTMLResponse is broader class)
 <br>
@@ -797,13 +800,167 @@ template/car.html:
 @app.get('/edit', response_class = HTMLResponse)
 def edit_car(request:Request, id:int = Query(...)):
     car = cars.get(id)
-    
-    #1
-    if not car:
+    if not car: #1
         return templates.TemplateResponse("search.html",{"request":request,"id":id,"title":"Edit car"},status_code=status.HTTP_404_NOT_FOUND )
     return templates.TemplateResponse("edit.html",{"request":request,"car":car,"id":id,"title":"Edit car"})
-    
-    
 
 ```
 1. If we can't find the car, we will return search which will return customized message. 
+
+
+#### Craeting edit form
+You can just copy the form directly from 'create.html' albeit with some need for modifications. As this is "edit" we will need to assign existing values.<br><br>
+
+templates/edit.html:
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container" style="margin-top: 1em;"> <!-- To make a bit of space-->
+    <form action="/cars/{{id}}" method="POST">
+        <div class="mb-3">
+            <label for="make" class="form-label">Make</label>
+            <input type="text" class="form-control" name="make" id="make" value="{{car[make]}}" aria-describedby="makeDesc">
+            <div id="makeDesc" class="form-text">The make of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="model" class="form-label">Model</label>
+            <input type="text" class="form-control" name="model" id="model" value="{{car['model']}}" aria-describedby="modelDesc">
+            <div id="modelDesc" class="form-text">The model of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="year" class="form-label">Year</label>
+            <input type="text" class="form-control" name="year" id="year" value="{{car['year']}}" aria-describedby="yearDesc">
+            <div id="yearDesc" class="form-text">The year of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="price" class="form-label">price</label>
+            <input type="text" class="form-control" name="price" id="price" value="{{car['price']}}" aria-describedby="priceDesc">
+            <div id="priceDesc" class="form-text">The price of the car</div>
+        </div>
+        <div class="mb-3">
+            <label for="engine" class="form-label">Engine</label>
+            <input type="text" class="form-control" name="engine" id="engine" value="{{car['engine']}}" aria-describedby="engineDesc">
+            <div id="engineDesc" class="form-text">The engine of the car</div>
+        </div>
+
+        <!-- Select field -->
+        <div class="mb-3">
+            <label for="autonomous" class="form-label">Is the car autonomous?</label>
+            <select class="form-select" name="autonomous" id="autonomous">
+                {% if car["autonomous"] %}
+                <option selected value="true">Yes</option>
+                <option value="false">No</option>
+                {% else %}
+                <option value="true">Yes</option>
+                <option selected value="false">No</option>
+                {% endif %}
+            </select>
+        </div>
+
+        <!-- Checkbox -->
+        <div class="mb-3">
+            <p>Where is the car sold?</p>
+            <div class="form-check">
+                {% for ct in [("Africa","AF"),
+                              ("Antarctica","AN"),
+                              ("Asia","AS"),
+                              ("Europe","EU"),
+                              ("North America","NA"),
+                              ("Oceania","OC"),
+                              ("South America","SA")] %}
+                <!-- In each one, we want to create a conditional that checks if it is "checked"  -->
+                {% if ct[1] in car['sold']%}
+                    <input class="form-check-input" type="checkbox" value="{{ct[1]}}" name="sold" checked>
+                    {{ct[0]}} ({{ct[1]}})<br>
+                {% else %}
+                    <input class="form-check-input" type="checkbox" value="{{ct[1]}}" name="sold">
+                    {{ct[0]}} ({{ct[1]}})<br>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+</div>
+
+{% include 'footer.html' %}
+
+<!-- Try to make name and id match Pydantic model. -->
+```
+
+### Sending form request so it updates
+Unfortunately, HTML forms do not support the put and delete operations.(Only support GET and POST.)<br>
+So, instead, we will send them to POST route directly to post('/cars/{id}')<br>
+Change the following:
+```python
+@app.put("/cars/{id}", response_model=Dict[str,Car])
+def update_car(id: int, car:Car= Body(...) ): 
+    stored = cars.get(id)
+    if not stored:
+        raise HTTPException(status_code =status.HTTP_404_NOT_FOUND,detail="Couldn't find car with given ID" )
+    stored = Car(**stored) 
+    print(type(car))
+    new = car.dict(exclude_unset=True) 
+    new = stored.copy(update=new)
+    cars[id] = jsonable_encoder(new) 
+    response ={}
+    response[id] = cars[id]
+    return response
+```
+
+To:
+
+```python
+@app.post('/cars/{id}',response_class=HTMLResponse)
+def update_car(request:Request, id:int,
+    make:Optional[str] = Form(None),  #1
+    model:Optional[str] = Form(None),
+    year:Optional[str] = Form(None),
+    price:Optional[float] = Form(None),
+    engine:Optional[str] = Form(None),
+    autonomous:Optional[bool] = Form(None), 
+    sold: Optional[List[str]] = Form(None)):
+
+    stored= cars.get(id)
+    if not stored: 
+        return templates.TemplateResponse('search.html',{"request":request, "id":id,"title":"Edit car"}, status_code=status.HTTP_404_NOT_FOUND)
+    stored = Car(**dict(stored)) #2
+    car = Car(make=make,model=model,year=year,price=price,engine=engine,autonomous=autonomous,sold=sold)
+    new = car.dict(exclude_unset=True)
+    new = stored.copy(update=new)
+    cars[id] = jsonable_encoder(new)
+    response ={}
+    response[id] = cars[id]
+    return RedirectResponse(url="/cars",status_code=302) #3
+
+```
+1. Unlike '/create' having required fields, we put the default value None as a User wouldn't want to edit everything all at once. 
+2. Sometimes when you store the data, you can have pydantic models OR some others. To be verbose, convert it entirely to dict. 
+3. Here, you may have noticed that first potential return class is HTMLResponse but the second is Redirect. So, you can confirm that it's just optional in this case. - Majority of these response classes are for editor support. 
+
+### Deleting a car
+All we need to do is just slightly modify things in the car.html file.
+
+```html
+...
+...
+
+    {% endif %}
+    <p>ID: {{id}}</p>
+    <a class="btn btn-dark" href="/edit?id={{id}}">EDIT</a>
+    <a class="btn btn-danger" href="/delete/{{id}}">DELETE</a>
+</div>
+```
+
+And things in main.py:
+```python
+@app.get("/delete/{id}",response_class=RedirectResponse) #1
+def delete_car(request:Request, id:int = Path(...)): #2
+    if not cars.get(id):
+        return templates.TemplateResponse('search.html',{"request":request, "id":id,"title":"Delete car"}, status_code=status.HTTP_404_NOT_FOUND)
+    del cars[id]
+    return RedirectResponse(url="/cars")
+```
+1. Why not @app.delete? because we don't need it. It may violate the CRUD standard but we need to do it to make sure this works without using any advanced features.
+2. We add path validation to make sure it is recognized.

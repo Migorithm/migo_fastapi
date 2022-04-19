@@ -18,15 +18,17 @@ class Car(BaseModel):
     autonomous: Optional[bool]
     sold: Optional[List[str]]
     
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="templates") #For serverside rendering1
 
 app = FastAPI()
-app.mount("/static",StaticFiles(directory="static"),name="static")
+app.mount("/static",StaticFiles(directory="static"),name="static") #For serverside rendering2
+
+
 
 @app.get('/',response_class=RedirectResponse)
 def root(request:Request):
     
-    return RedirectResponse(url="/cars")
+    return RedirectResponse(url="/cars") #url_for?
 
 
 @app.get('/cars',response_class=HTMLResponse)
@@ -109,15 +111,16 @@ def update_car(request:Request, id:int,
     response[id] = cars[id]
     return RedirectResponse(url="/cars",status_code=302) #3
 
-@app.delete("/cars/{id}")
-def delete_car(id:int):
+@app.get("/delete/{id}",response_class=RedirectResponse) #1
+def delete_car(request:Request, id:int = Path(...)): #2
     if not cars.get(id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Couldn't find car with given id")
-
+        return templates.TemplateResponse('search.html',{"request":request, "id":id,"title":"Delete car"}, status_code=status.HTTP_404_NOT_FOUND)
     del cars[id]
-    
+    return RedirectResponse(url="/cars")
     
 
 @app.post('/search', response_class=RedirectResponse)
 def search_cars(id:str=Form(...)):
     return RedirectResponse("/cars/" + id, status_code=302) 
+
+
