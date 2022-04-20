@@ -80,7 +80,7 @@ def add_cars(
     return RedirectResponse(url="/cars",status_code=302) #3
      
         
-@app.get('/edit', response_class = HTMLResponse)
+@app.get('/edit', response_class = HTMLResponse) #While the actual class is TemplateResponse, HTMLResponse is the top-level class to use.
 def edit_car(request:Request, id:int = Query(...)):
     car = cars.get(id)
     if not car:

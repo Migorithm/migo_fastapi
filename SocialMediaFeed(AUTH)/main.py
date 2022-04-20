@@ -1,5 +1,5 @@
-from graphlib import CycleError
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request,Response,Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -71,8 +71,6 @@ app.mount("/static",StaticFiles(directory="static"),name="static")
 
 
 
-
-
 #Now we're going to create Database Model inheriting not from BaseModel but from our pydantic model
 class UserDB(User):
     hashed_password:str #1
@@ -84,4 +82,13 @@ def root(request:Request):
 
 @app.get("/login",response_class=HTMLResponse)
 def get_login(request:Request):
-    return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True})
+    return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login"})
+
+
+
+@app.post("/login") 
+def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)) :
+    user = authenticate_user(username=form_data.username,password=form_data.password)
+    if not user: 
+        return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True})
+    

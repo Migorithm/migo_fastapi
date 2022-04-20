@@ -351,3 +351,144 @@ def authenticate_user(username:str, password:str):
 2. we specified this in the model(UserDB)
 3. If the function returns user, it indicates the user is authenticated.
 4. This assign the function below to the manager so when it's going through authentication on the pages, it's going to use this to get the user from the DB. (So, basically this is to define how a user is loaded.)
+
+
+### Login Mechanism : Login data route
+We are going to complete our login mechanism by creaing the login endpoint.<br>
+If the user isn't authenticated, we'll be redirecting the request to the endpoint.<br>
+
+```python
+from fastapi import Request, Response, Depends #3
+from fastapi.security import OAuth2PasswordRequestForm
+@app.post("/login") #1
+def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)): #2
+    pass
+ 
+```
+1. This is where our form is redirecting
+2. We need three main argument here.
+    - **Request** : if the user isn't authenticated, we want to redirect back to login page. And Request object is required for HTML response.
+    - **Response Object**: to allow or attach the cookie to our response.
+    - **form data** : through OAuth2PasswordRequestForm, it will contain username and password. 
+
+3. **Depends** : For easy use of dependency injection. This is useful when you need to have shared logic, database connections, enforce security, authentication, role requirements and so on.<br> 
+
+#### Closer look at Depends()
+**functions as dependencies** <br>
+For example:
+```python
+from fastapi import Depends
+from typing import Optional
+async def common_parameters(q: Optional[str] = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+@app.get("/items/")
+async def read_items(commons: dict = Depends(common_parameters)):
+    return commons
+
+@app.get("/users/")
+async def read_users(commons: dict = Depends(common_parameters)):
+    return commons
+```
+With two lines, it has teh same shape and structure that all your path operation functions have.<br>
+In this case, this dependency expects:
+- An optional query parameter q that is a 'str'
+- An optional query parameter skip that is an 'int', and by default is 0.
+- An optional query parameter limit that is an 'int', and by default is 100.
+So the parameter passed in must be callables like function and that function takes parameters in the same way that path operation functions do.<br><br>
+
+**classes as dependencies** <br>
+The key factor is that a dependency should be a "callable".<br>
+A "callable" in Python is anything that Python can "call" like a function.<br>
+You might notice that to create an instance of a Python class, you use that same syntax.
+```python
+class Cat:
+    def __init__(self, name:str):
+        self.name =name
+
+fluffy = Cat(name="Mr Fluffy")
+```
+To create fluffy, you "called" Cat. So, a Python class is also a callable.<br>
+If you pass a "callable" as a dependency in FastAPI, it will analyze the parameters for that "callable",<br> 
+and process them in the same way as the parameters for a path operation function.<br><br>
+
+For example:
+```python
+from typing import Optional
+from fastapi import Depends, FastAPI
+
+app = FastAPI()
+
+fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+class CommonQueryParams:
+    def __init__(self, q: Optional[str] = None, skip: int = 0, limit: int = 100):
+        self.q = q
+        self.skip = skip
+        self.limit = limit
+
+@app.get("/items/")
+async def read_items(commons: CommonQueryParams = Depends(CommonQueryParams)):
+    response = {}
+    if commons.q:
+        response.update({"q": commons.q})
+    items = fake_items_db[commons.skip : commons.skip + commons.limit]
+    response.update({"items": items})
+    return response
+```
+
+
+
+<br><br>
+
+#### Back to main topic - access token
+
+Now, we have our three main parameters working, let's actually get started. 
+```python
+from fastapi import Request, Response, Depends 
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime, timedelta
+
+@app.post("/login") 
+def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+    user=authenticate_user(username=form_data.username,password=form_data.password)
+    if not user: #1
+        return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True},status_code=status.HTML_401_UNAUTHORIZED)
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRES_MINUTES) 
+    access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2
+ 
+```
+1. If you cannot find a user from DB
+2. If everything goes well, we will create access token using login manager variable. First thing we want to pass in is data we want to encode into the token for which in this case we have 'sub' 
+<br><br>
+
+Now we have created our access token and now that's incorporated into our library and we don't need to handle any of the complex parts of the token.<br><br>
+
+Now we have access token, we need to work with the response and set the cookie.
+
+#### response and cookie
+```python
+
+@app.post("/login") 
+def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+    user=authenticate_user(username=form_data.username,password=form_data.password)
+    if not user: 
+        return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True},status_code=status.HTML_401_UNAUTHORIZED)
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRES_MINUTES) 
+    access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2
+    
+    resp = RedirectResponse("/home",status_code=status.HTTP_302_FOUND) 
+    manager.set_cookie(resp, access_token) #1
+    return resp #2
+
+```
+1. Firstly, you add response and next we put access token that contains username data and expiration time. 
+2. The return value is resp, NOT cookie, which makes sense as cookie is set using the "Set-Cookie" header field sent in an HTTP response from the web server. This header field instructs the web browser to store the cookie and send it back in future requests to the server. 
+
+### 10:42 home
+```python 
+@app.get('/home')
+def home(user:User = Depends(manager)): #1
+
+```
