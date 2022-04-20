@@ -221,8 +221,133 @@ templates/login.html:
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>
     {% if invalid %}
-        <p style="margin-top:0.5em; color: red">Invalid username or password. Please try again.</p>
+        <p style="margin-top:0.5em; color: #eb4823">Invalid username or password. Please try again.</p>
     {% endif %}
 </div>
 ```
 
+If you want to test this out at this point, you can just pass in "invalid" key with argument True in '/login' endpoint.
+
+
+
+### Mechanism of Password hashing
+Most web developers and security experts use what is called password hashing,<br>
+which is using some encryption method to scramble up the password.<br><br>
+
+Leaving aside how the algorithm works, the point is it returns a string that is UNIQUE to the password,<br>
+but CANNOT be reversed. With that anti-reversal property, this works in a way that:
+- user passes in real(orginal) password
+- server generates the hashed_password based on the given password
+- server matches if the hashed_password is the same as the one in the Database.
+<br>
+
+As a logical consequence, we need: 
+- password hashing function - which will take a plaintext password from the user
+- password verifying function 
+
+```python
+from passlib.context import CryptContext
+
+pwd_ctx = CryptContext(schemes=["bcrypt"],deprecated="auto") #1
+
+def get_hashed_password(plain_password):
+    return pwd_ctx.hash(plain_password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_ctx.verify(plain_password,hashed_password)
+
+print(get_hashed_password("password")) #2 #$2b$12$vrq3SSTFi/5IGR1G.lBINu7RDt3UebXxcMjQQxVYpD5/IsHe6LtE2
+print(get_hashed_password("password")) #3 #$2b$12$gmJxB6tb5JAJozlmZfRiyeM1bOaXaPChfQBgMY4Po7hImfzsnNrpm
+print(verify_password("password",get_hashed_password("password"))) #4 True
+```
+1. 'schemes' is to specify the type of hashing mechanism we want
+2. As you can see, even with the same password, the return values of hashed_password are different.
+3. However, even though the yielded hashed password look different, within the scheme we specify, **they're treated as the same password**, hence the possibility of verification of password. 
+4.  In real example, you would need to load the hash_password from DB.
+
+
+### Login mechanism : User verification
+We're going to be using an external library called fastapi_login; otherwise you have to work with native fastapi code and that's mouthful.<br>
+```python
+from fastapi_login import LoginManager
+
+manager= LoginManger(secret='.',token_url="/login", use_cookie=True) #1 #2 #3 #4 #5
+
+```
+1. This instance takes in 3 arguments. 
+    - secrets : string that is used to encrypt our token
+    - token_url : the url we are going to get the token from (this is going to be POST request)
+    - use_cookie(optional) : this allows us to use cookies to store our tokens so that the users don't have to send headers over all the time.
+<br>
+
+2. All of the authorization works through **JWT**; a way of taking a bunch of data and turning it into one long string to identify user.
+<br>
+
+3. The token is sent using either 
+    - HTTP headers : posted in requests 
+    - or through cookies : it store token to a permanent piece of information in web browser and on any website you visit you can access that cookie to see if the user is authorized.
+<br>
+
+4. The token has information about the user, username, the time that we want the token to last for, and some other general information. 
+<br>
+
+5. JWT is not hashed or encrypted. They can be easily reversed if you have the secret key. But we don't have to worry about it because the only way you use the secret key is to verify the user. Plus, the only reason or the only way we would generate the key is after we complete all of the user authentication with the hashed passwords. 
+<br>
+
+#### Using environment variable
+As you may have remembered, we've installed python-dotenv. 
+```python
+>>> import os
+>>> os.urandom(24).hex() #generate random key
+```
+```sh
+touch .env
+vi .env
+
+#.env
+SECERET_KEY="value from the generated key above"
+```
+
+```python
+from fastapi_login import LoginManager
+import os
+from dotenv import load_dotenv #1
+load_dotenv() #1
+SECRET_KEY=os.getenv("SECRET_KEY") #2
+ACCESS_TOKEN_EXPIRES_MINUTES=60 #3
+
+manager= LoginManger(secret=SECRET__KEY,token_url="/login", use_cookie=True) 
+manager.cookie_name = "auth"
+```
+1. This is going to allow us to import all of our environment variables from the files into Python namespace
+2. Now we can actually get env varaibles.
+3. To build in some general expiry time for web tokens so we don't allow attackers to have indefinite access. This will be used when we're actually creating the token
+4. Set the name of cookie that's used for our token.
+
+
+#### User authentication
+We need two functions:
+- one for getting the user from the DB with ogin manager's decorator function. 
+- one for authentication function that will take, in a plaintext, username and password.
+
+```python
+manager= LoginManger(secret=SECRET__KEY,token_url="/login", use_cookie=True) 
+manager.cookie_name = "auth"
+
+@manager.user_loader() #4
+def get_user_from_db(username:str):
+    if username in users.keys(): #1
+        return UserDB(**users[username])
+
+def authenticate_user(username:str, password:str):
+    user= get_user_from_db(username=username)
+    if not user:
+        return None
+    if not verify_password(plain_password=password,hashed_password=user.hashed_password) #2
+        return None
+    return user #3
+```
+1. This must be modified when you actually work with database. 
+2. we specified this in the model(UserDB)
+3. If the function returns user, it indicates the user is authenticated.
+4. This assign the function below to the manager so when it's going through authentication on the pages, it's going to use this to get the user from the DB. (So, basically this is to define how a user is loaded.)
