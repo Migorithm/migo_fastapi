@@ -366,6 +366,31 @@ def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm 
     pass
  
 ```
+<br><br>
+
+**What is OAuth?**<br>
+Before OAuth, sites would prompt you to enter your username and password directly into a form and they would log in to your data (e.g. your Gmail account) as you.<br>
+This is often called the password anti-pattern.<br><br>
+
+To create a better system for the web, federated identity was created for single sign-on (SSO).<br>
+In this scenario, an end user talks to their identity provider, and the identity provider generates a cryptographically signed token<br>
+which it hands off to the application to authenticate the user. <br><br>
+
+OAuth is a delegated authorization framework for REST/APIs.<br>
+It enables apps to obtain limited access (scopes) to a user’s data without giving away a user’s password.<br><br>
+
+You can think of this like hotel key cards, but for apps. <br>
+If you have a hotel key card, you can get access to your room.<br> 
+How do you get a hotel key card? <br>
+You have to do an authentication process at the front desk to get it.<br><br>
+
+To break it down simply, OAuth is where:<br>
+- App requests authorization from User.
+- User authorizes App and delivers proof.
+- App presents proof of authorization to server to get a Token.
+- Token is restricted to only access what the User authorized for the specific App.
+
+
 1. This is where our form is redirecting
 2. We need three main argument here.
     - **Request** : if the user isn't authenticated, we want to redirect back to login page. And Request object is required for HTML response.

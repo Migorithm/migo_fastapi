@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Request,Response,Depends
+from fastapi import FastAPI, Request,Response,Depends,status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse,RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -10,6 +10,8 @@ from fastapi_login import LoginManager
 import os
 from dotenv import load_dotenv
 from db import users
+from datetime import timedelta
+
 
 #Model
 class Notification(BaseModel):
@@ -40,7 +42,7 @@ def verify_password(plain_password, hashed_password):
     return pwd_ctx.verify(plain_password,hashed_password)
 
 
-#login
+#login - global variable
 manager = LoginManager(secret=SECRET,token_url="/login",use_cookie=True)
 manager.cookie_name="auth"
 
@@ -90,5 +92,10 @@ def get_login(request:Request):
 def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)) :
     user = authenticate_user(username=form_data.username,password=form_data.password)
     if not user: 
-        return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True})
+        return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True},status_code=status.HTTP_401_UNAUTHORIZED)
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRES_MINUTES) 
+    access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2
+    
+    resp = RedirectResponse("/home",status_code=status.HTTP_302_FOUND)
     
