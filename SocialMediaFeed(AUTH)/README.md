@@ -170,6 +170,7 @@ def root(request:Request):
 ```
 1. Again, if you want to render HTML to users, you must pass in the key-value pair that includes Request object in template response.
 
+
 ### Creating Login page
 templates/login.html:
 ```html
@@ -263,7 +264,7 @@ print(verify_password("password",get_hashed_password("password"))) #4 True
 1. 'schemes' is to specify the type of hashing mechanism we want
 2. As you can see, even with the same password, the return values of hashed_password are different.
 3. However, even though the yielded hashed password look different, within the scheme we specify, **they're treated as the same password**, hence the possibility of verification of password. 
-4.  In real example, you would need to load the hash_password from DB.
+4. In real example, you would need to load the hash_password from DB.
 
 
 ### Login mechanism : User verification
@@ -291,7 +292,7 @@ manager= LoginManger(secret='.',token_url="/login", use_cookie=True) #1 #2 #3 #4
 4. The token has information about the user, username, the time that we want the token to last for, and some other general information. 
 <br>
 
-5. JWT is not hashed or encrypted. They can be easily reversed if you have the secret key. But we don't have to worry about it because the only way you use the secret key is to verify the user. Plus, the only reason or the only way we would generate the key is after we complete all of the user authentication with the hashed passwords. 
+5. JWT is NOT **hashed** or **encrypted**. They can be easily reversed if you have the secret key. But we don't have to worry about it because the only way you use the secret key is to verify the user. Plus, the only reason or the only way we would generate the key is after we complete all of the user authentication with the hashed passwords. 
 <br>
 
 #### Using environment variable
@@ -317,7 +318,7 @@ SECRET_KEY=os.getenv("SECRET_KEY") #2
 ACCESS_TOKEN_EXPIRES_MINUTES=60 #3
 
 manager= LoginManger(secret=SECRET__KEY,token_url="/login", use_cookie=True) 
-manager.cookie_name = "auth"
+manager.cookie_name = "auth" #4
 ```
 1. This is going to allow us to import all of our environment variables from the files into Python namespace
 2. Now we can actually get env varaibles.
