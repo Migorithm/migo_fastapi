@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Request,Response,Depends,status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse,RedirectResponse
+from fastapi.responses import HTMLResponse,RedirectResponse,FileResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List,Optional
+from typing import List
 from passlib.context import CryptContext
 from fastapi_login import LoginManager
 import os
@@ -15,7 +15,7 @@ from datetime import timedelta
 
 #Model
 class Notification(BaseModel):
-    auther: str
+    author: str
     description: str
 
 class User(BaseModel):
@@ -24,11 +24,14 @@ class User(BaseModel):
     email: str
     birthday: str
     friends: List[str]
-    notification: List[Notification]
-    
+    notifications: List[Notification]
+
+#Now we're going to create Database Model inheriting not from BaseModel but from our pydantic model
+class UserDB(User):
+    hashed_password:str #1
     
 #env variables
-load_dotenv(dotenv_path='./')
+load_dotenv()
 SECRET = os.getenv("SECRET_KEY")
 
 ACCESS_TOKEN_EXPIRES_MINUTES=60 
@@ -48,14 +51,14 @@ manager.cookie_name="auth"
 
 @manager.user_loader()
 def get_user_from_db(username:str):
-    if username in users.key():
+    if username in users.keys():
         return UserDB(**users[username])
 
 def authenticate_user(username:str,password:str):
     user=get_user_from_db(username=username)
     if not user:
         return None
-    if not verify_password(plain_password=password,hashed_password=user.hashed_password)
+    if not verify_password(plain_password=password,hashed_password=user.hashed_password):
         return None
     return user
 
@@ -73,9 +76,7 @@ app.mount("/static",StaticFiles(directory="static"),name="static")
 
 
 
-#Now we're going to create Database Model inheriting not from BaseModel but from our pydantic model
-class UserDB(User):
-    hashed_password:str #1
+
 
 @app.get('/', response_class=HTMLResponse)
 def root(request:Request):
@@ -98,4 +99,25 @@ def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm 
     access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2
     
     resp = RedirectResponse("/home",status_code=status.HTTP_302_FOUND)
+
+    manager.set_cookie(resp, access_token) #1
+    return resp #2
     
+class NotAuthenticatedException(Exception):
+    pass
+
+def not_authenticated_exception_handler(req,exce):
+    return RedirectResponse("/login")
+
+manager.not_authenticated_exception = NotAuthenticatedException
+app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception_handler)
+@app.get('/home')
+def home(user:User = Depends(manager)): #1
+    return user
+
+@app.get('/logout',response_class=RedirectResponse)
+def logout(): #1
+    response = RedirectResponse('/')
+    manager.set_cookie(response, None) #2
+    return response
+

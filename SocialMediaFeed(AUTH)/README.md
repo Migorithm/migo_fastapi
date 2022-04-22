@@ -61,7 +61,7 @@ from typing import List, Optional
 from db import users
 
 class Notification(BaseModel):
-    auther: str
+    author: str
     description: str
 
 class User(BaseModel):
@@ -70,7 +70,7 @@ class User(BaseModel):
     email: str
     birthday: str
     friends: List[str]
-    notification: List[Notification]
+    notifications: List[Notification]
 
 #Now we're going to create Database Model inheriting not from BaseModel but from our pydantic model
 class UserDB(User):
@@ -193,7 +193,7 @@ templates/login.html:
         </div>
         <div class="mb-3"> <!--One for the Password-->
             <label for="password" class="form-label">Password</label>
-            <input type="text" class="form-control" id="password" name="password" required> <!-- so we don't send empty data to backend-->
+            <input type="password" class="form-control" id="password" name="password" required> <!-- so we don't send empty data to backend-->
         </div>
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>
@@ -512,9 +512,37 @@ def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm 
 1. Firstly, you add response and next we put access token that contains username data and expiration time. 
 2. The return value is resp, NOT cookie, which makes sense as cookie is set using the "Set-Cookie" header field sent in an HTTP response from the web server. This header field instructs the web browser to store the cookie and send it back in future requests to the server. 
 
-### 10:42 home
+### Exception handling
+
 ```python 
+
+class NotAuthenticatedException(Exception):
+    pass
+
+def not_authenticated_exception_handler(req,except): #5
+    return RedirectResponse("/login")
+
+manager.not_authenticated_exception = NotAuthenticatedException #3
+app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception_handler) #4
 @app.get('/home')
-def home(user:User = Depends(manager)): #1
+def home(user:User = Depends(manager)): #1 #2
+    return user
 
 ```
+1. User is depending on manager. When you do this, you have it depend on variable, and it's going to call the variable and do all of the deep authentication work that the login manager has done for us. 
+
+2. By default it will raise an exception in JSON saying,
+```
+{"detail":"Not authenticated"}
+```
+SO you can confirm that by making user "Depends" on "manager", <br>
+if necessitates login
+
+3. You specify how you want the login manager handles not authenticated access. In this example, we use custom exception. 
+
+4. Only with custom exception though, you can't necessitate user logging in. You have to map the exception to function. So when a certain exception occurs, that is mapped to the function and within the function, we put redirection logic.
+
+5. Note too that the function being mapped to must have two parameter, each of which is for **'request'** and **'exception'**, respectively.
+
+Let's boot up the screen and click the 'home', you'll be redirected to login page.<br>
+Just a heads-up that password for the user here is 'password'
