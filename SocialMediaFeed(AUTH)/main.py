@@ -121,3 +121,7 @@ def logout(): #1
     manager.set_cookie(response, None) #2
     return response
 
+
+@app.get('/register',response_class=HTMLResponse)
+def register(request:Request):
+    return templates.TemplateResponse('register.html',{"request":request,"title":"FriendConnect - Register","invalid":False})

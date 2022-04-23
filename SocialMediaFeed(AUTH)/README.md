@@ -546,3 +546,63 @@ if necessitates login
 
 Let's boot up the screen and click the 'home', you'll be redirected to login page.<br>
 Just a heads-up that password for the user here is 'password'
+
+
+### Logout mechanism
+Just like we set the cookie, if you set the cookie to remove the token, it's the very logout mechanism. 
+
+```python
+@app.get('/logout',response_class=RedirectResponse)
+def logout(): #1
+    response = RedirectResponse('/')
+    manager.set_cookie(response, None) #2
+    return response
+
+```
+1. This isn't going to take any parameters 
+2. Unlike before when we set the cookie with access_token, this time we set cookie to None, effectively removing existing cookie; therefore no more authentication.
+
+
+
+### Registration Page
+#### Frontend part
+```python
+@app.get('/register',response_class=HTMLResponse)
+def get_register(request:Request):
+    return templates.TemplateResponse("register.html",{"request":request,"title":"FriendConnect - Register","invalid":False})
+```
+<br>
+
+**register.html**:
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container" style="justify-self: center;">
+    <form action="/register" method="POST">
+        <div class="mb-3">
+            <label for="username" class="form-label"></label>
+            <input type="text" class="form-control" id="username" name="username">
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label"></label>
+            <input type="email" class="form-control" id="email" name="email">
+        </div>
+        <div class="mb-3">
+            <label for="name" class="form-label"></label>
+            <input type="text" class="form-control" id="name" name="name">
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label"></label>
+            <input type="password" class="form-control" id="password" name="password">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    {% if invalid %}
+        <p style="margin-top: 0.5em; color: #eb4823">This user is already registered.</p>
+    {% endif %}
+</div>
+{% include 'footer.html' %}
+
+```
+
+#### BackEnd Part
