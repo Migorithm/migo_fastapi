@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request,Response,Depends,status
+from fastapi import FastAPI, Request,Response,Depends,status,Form
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse,RedirectResponse,FileResponse
+from fastapi.responses import HTMLResponse,RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List
+from typing import List,Optional
 from passlib.context import CryptContext
 from fastapi_login import LoginManager
 import os
@@ -22,9 +23,9 @@ class User(BaseModel):
     name: str
     username: str
     email: str
-    birthday: str
-    friends: List[str]
-    notifications: List[Notification]
+    birthday: Optional[str]
+    friends: Optional[List[str]]
+    notifications: Optional[List[Notification]]
 
 #Now we're going to create Database Model inheriting not from BaseModel but from our pydantic model
 class UserDB(User):
@@ -125,3 +126,24 @@ def logout(): #1
 @app.get('/register',response_class=HTMLResponse)
 def register(request:Request):
     return templates.TemplateResponse('register.html',{"request":request,"title":"FriendConnect - Register","invalid":False})
+
+
+@app.post('/register')
+def register(request:Request,username:str=Form(...),name:str=Form(...),password:str =Form(...),email:str=Form(...)) :
+    #get the hash password we need 
+    hashed_password= get_hashed_password(password)
+    invalid = False
+
+    for db_username in users.keys():
+        if username == db_username:
+            invalid = True
+        elif users[db_username]["email"] == email : 
+            invalid = True
+    if invalid:
+        return templates.TemplateResponse("register.html",{"request":request,"title":"FriendConnect - Register","invalid":invalid},status_code=status.HTTP_400_BAD_REQUEST)
+    
+    users[username] = jsonable_encoder(UserDB(username=username,email=email,name=name,hashed_password=hashed_password)) #3
+
+    response = RedirectResponse('/login', status_code=status.HTTP_302_FOUND) #4
+    manager.set_cookie(response,None)
+    return response
