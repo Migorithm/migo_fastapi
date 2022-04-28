@@ -50,6 +50,7 @@ def verify_password(plain_password, hashed_password):
 manager = LoginManager(secret=SECRET,token_url="/login",use_cookie=True)
 manager.cookie_name="auth"
 
+
 @manager.user_loader()
 def get_user_from_db(username:str):
     if username in users.keys():
@@ -107,19 +108,22 @@ def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm 
 class NotAuthenticatedException(Exception):
     pass
 
-def not_authenticated_exception_handler(req,exce):
+
+def not_authenticated_exception_handler(req:Request,exce):
     return RedirectResponse("/login")
 
 manager.not_authenticated_exception = NotAuthenticatedException
 app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception_handler)
+
 @app.get('/home')
-def home(user:User = Depends(manager)): #1
-    return user
+def home(request: Request, user:User = Depends(manager)): 
+    user = User(**dict(user))
+    return templates.TemplateResponse("home.html",{"request":request,"title":"FriendConnect - Home","user":user})
 
 @app.get('/logout',response_class=RedirectResponse)
 def logout(): #1
     response = RedirectResponse('/')
-    manager.set_cookie(response, None) #2
+    manager.set_cookie(response, None) 
     return response
 
 

@@ -606,3 +606,242 @@ def get_register(request:Request):
 ```
 
 #### BackEnd Part
+Before we get started with the actual route, we do need to change our model a little bit because currently, the model is like this. 
+```python
+from pydantic import BaseModel
+class Notification(BaseModel):
+    author: str
+    description: str
+
+class User(BaseModel):
+    name: str
+    username: str
+    email: str
+    birthday: str
+    friends: List[str]
+    notifications: List[Notification]
+class UserDB(User):
+    hashed_password:str 
+```
+So as you can see, every field is "required."<br>
+Based on our registration form which asks for name, username, email and password, we don't actually have birthday, friends and notification for example.<br><br>
+
+```python
+from pydantic import BaseModel
+from typing import Optional,List
+class Notification(BaseModel):
+    author: str
+    description: str
+
+class User(BaseModel):
+    name: str
+    username: str
+    email: str
+    birthday: Optional[str]
+    friends: Optional[List[str]]
+    notifications: Optional[List[Notification]]
+class UserDB(User):
+    hashed_password:str 
+```
+<br>
+
+Now we have our model ready, let's create a new endpoint.
+```python
+from fastapi import Form, status
+from fastapi.encoders import jsonable_encoder
+@app.post('/register') #1 
+def register(request:Request,username:str=Form(...),name:str=Form(...),password:str =Form(...),email:str=Form(...)) : #2
+    #get the hash password we need 
+    hashed_password= get_hashed_password(password)
+    invalid = False
+
+    for db_username in users.keys():
+        if username == db_username: #If username already used.
+            invalid = True
+        elif users[db_username]["email"] == email : #If email already taken
+            invalid = True
+    if invalid:
+        return templates.TemplateResponse("register.html",{"request":request,"title":"FriendConnect - Register","invalid":invalid},status_code=status.HTTP_400_BAD_REQUEST)
+    
+    users[username] = jsonable_encoder(UserDB(username=username,email=email,name=name,hashed_password=hashed_password)) #3
+
+    response = RedirectResponse('/login', status_code=status.HTTP_302_FOUND) #4
+    manager.set_cookie(response,None)
+    return response
+
+
+```
+1. The way this Path Operation works is we are going to "redirect" to login page if the user is successfully registered. But, if there is any error that arises, we are going to return the register page with our invalid message displayed. You can return a RedirectResponse directly without having to put that in the path operation. 
+
+2. Everything that comes from Form object is defined as above. 
+
+3. This needs to be python dictionary. For this, we use **jsonable_encoder** function we can import from fastapi.encoder that **would pydantic model into JSON-compatible form**
+
+4. The final thing we need to do is actually return the response we need and set the cookie to None to effectively logout of the existing user to make things easier. 
+
+<br><br>
+If you register and new user and login with the username, you will see the result similar to the following:
+```
+{"name":"Migo Lee","username":"Migo","email":"m@m.m","birthday":null,"friends":null,"notifications":null,"hashed_password":"$2b$12$L/GdRP0THrrZfS/thwEW5esixx9Vsa8FyXPb5CScr//yX5r9nl9iO"}
+```
+So the birthday, friends and notification are filled with null. For future use, let's set default values for them.
+
+```python
+from pydantic import BaseModel
+from typing import Optional,List
+class Notification(BaseModel):
+    author: str
+    description: str
+
+class User(BaseModel):
+    name: str 
+    username: str
+    email: str
+    birthday: Optional[str] =""
+    friends: Optional[List[str]] =[]
+    notifications: Optional[List[Notification]] =[]
+class UserDB(User):
+    hashed_password:str 
+
+```
+
+
+### Displaying User Information
+Let's turn home page into a fully fledged frontend page.<br>
+At the moment we have pretty basic home page. 
+```python
+@app.get('/home')
+def home(user:User = Depends(manager)): #1 #2
+    return user
+```
+
+#### Front side 
+
+First of all, let's create "templates/home.html"
+```html
+{% include 'header.html' %}
+{% include 'navbar.html' %}
+<div class="container-md" style="margin-top:1em;width: fit-content; min-width: 40vw "> <!-- 1, 2 -->
+
+    <div class="row">
+        <div class="col-12 col-md-8"> <!--3,4 -->
+            <h1>{{user.name}}</h1>
+            <p>@{{user.username}}</p>
+            {% if user.birthday %}
+            <p><strong>Birthday: </strong>{{user.birthday}}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-md-4" style="border: 1px solid #aaa;">
+            <h2>Your Friends</h2>
+            {% for friend in user.friends %}
+                <p><strong>{{friend}}</strong></p>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+
+{% include 'footer.html' %}
+```
+1. "width: fit-content" - works with container to resize the grid based on how we want it to look. 
+2. "min-width: 40vw" - makes sure it's not directly attrached to the content. VW stands for viewport width.  
+3. "col-12" - Default column width of 12. With bootstrap grid You have 12 default section. 
+4. "col-md-8" - On medium screens or above, we only want this to take up eight of the available columns. 
+
+#### Grid system
+- xs = extra small screens (mobile phones)
+- sm = small screens (tablets)
+- md = medium screens (some desktops)
+- lg = large screens (remaining desktops)
+
+You should usually classify a div using **multiple column classes so it behaves differently depending on the screen size** (this is the heart of what makes bootstrap responsive). eg: a div with classes col-xs-6 and col-sm-4 will span half the screen on the mobile phone (xs) and 1/3 of the screen on tablets(sm).
+```html
+<div class="col-xs-6 col-sm-4">Column 1</div> <!-- 1/2 width on mobile, 1/3 screen on tablet) -->
+<div class="col-xs-6 col-sm-8">Column 2</div> <!-- 1/2 width on mobile, 2/3 width on tablet -->
+```
+
+
+#### Home - Endpoint
+
+```python
+@app.get("home")
+def home(request:Request, user:User=Depends(manager)): #2
+    user = User(**dict(user)) #1
+    return templates.TemplateResponse("home.html",{"request":request,"title":"FreindConnect - Home","user":user}) #3
+```
+1. This must be Pydantic model which doesn't include password. dict() is to ensure that user comes in dictionary form. 
+2. Although we specified type hint as User, it doesn't necessarily mean we're only going to be getting user values. So, #1 is required. 
+3. User is passed in User pydantic model. 
+
+
+
+### Notification page
+Let's finish up the application by creating the notification section.<br>
+The way that we're going to do this is simply looping through the notification list as it is stored as follows:
+```python
+        "notifications": [
+            {
+                "author": "janedoe1",
+                "description": "liked a post you made."
+            },
+            {
+                "author": "doe.jim95",
+                "description": "Messaged you: \"Wanna meet up this weekend?\""
+            },
+            {
+                "author": "johndoe",
+                "description": "turns a year older today. Wish them a happy birthday!"
+            },
+        ]
+
+class Notification(BaseModel):
+    author: str
+    description: str
+```
+So, everytime you access element of notification, you will use Notification pydantic model.<br>
+
+Let's get back on 'templates/home.html'<br>
+```html
+<div class="container-md" style="margin-top:1em;width: fit-content; min-width: 40vw "> 
+
+    <div class="row">
+        <div class="col-12 col-md-8">
+            <h1>{{user.name}}</h1>
+            <p>@{{user.username}}</p>
+            {% if user.birthday %}
+            <p><strong>Birthday: </strong>{{user.birthday}}</p>
+            {% endif %}
+            {% if user.notifications %}
+                {% for notification in user.notifications %}
+                    
+                    <ul style="list-style: none; padding-left:0;"> 
+                        <!-- 1  -->
+                        <li><strong>{{notification.author}}</strong></li>
+                        <li>{{notification.description}}</li>
+                    </ul>
+                {% endfor %}
+            {% else %}
+                <p>No new notification</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-md-4" style="border: 1px solid #aaa;">
+            <h2>Your Friends</h2>
+            {% for friend in user.friends %}
+                <p><strong>{{friend}}</strong></p>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+
+{% include 'footer.html' %}
+```
+1. Remember, this follows the pydantic model whereby dot notation is made possible.
