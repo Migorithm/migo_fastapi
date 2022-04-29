@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request,Response,Depends,status,Form
 from fastapi.encoders import jsonable_encoder
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm 
 from fastapi.responses import HTMLResponse,RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -70,10 +70,11 @@ def authenticate_user(username:str,password:str):
 #Initialization of application
 app = FastAPI()
 
+
+
 #Templates
 templates= Jinja2Templates(directory="templates")
 app.mount("/static",StaticFiles(directory="static"),name="static")
-
 
 
 
@@ -98,7 +99,7 @@ def login(request:Request,response:Response,form_data:OAuth2PasswordRequestForm 
         return templates.TemplateResponse("login.html",{"request":request,"title":"FriendConnect - Login","invalid":True},status_code=status.HTTP_401_UNAUTHORIZED)
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRES_MINUTES) 
-    access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2
+    access_token = manager.create_access_token(data={"sub":user.username},expires=access_token_expires) #2 user.username
     
     resp = RedirectResponse("/home",status_code=status.HTTP_302_FOUND)
 
@@ -116,7 +117,7 @@ manager.not_authenticated_exception = NotAuthenticatedException
 app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception_handler)
 
 @app.get('/home')
-def home(request: Request, user:User = Depends(manager)): 
+def home(request: Request, user:User = Depends(manager)):  #user in this case will be whatever the with LoginManager.user_loader decorated function returns.
     user = User(**dict(user))
     return templates.TemplateResponse("home.html",{"request":request,"title":"FriendConnect - Home","user":user})
 
@@ -151,3 +152,5 @@ def register(request:Request,username:str=Form(...),name:str=Form(...),password:
     response = RedirectResponse('/login', status_code=status.HTTP_302_FOUND) #4
     manager.set_cookie(response,None)
     return response
+
+

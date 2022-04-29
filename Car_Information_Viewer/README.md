@@ -964,3 +964,5 @@ def delete_car(request:Request, id:int = Path(...)): #2
 ```
 1. Why not @app.delete? because we don't need it. It may violate the CRUD standard but we need to do it to make sure this works without using any advanced features.
 2. We add path validation to make sure it is recognized.
+
+

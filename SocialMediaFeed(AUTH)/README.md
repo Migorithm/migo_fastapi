@@ -845,3 +845,28 @@ Let's get back on 'templates/home.html'<br>
 {% include 'footer.html' %}
 ```
 1. Remember, this follows the pydantic model whereby dot notation is made possible.
+
+
+
+
+### Quiz
+1. How do you pass along an OAuth2 authentication scheme using FastAPI?
+- Dependencies : The authentication scheme is handled before, during, and after every request in which the dependency is included.
+
+2. Where is the best place to store a JWT key?
+- You can store this in a .env file, then read it into Python using the os library.
+
+3. True or False: You should create separate models for reading and creating user data.
+- True
+
+4. What class can be used to extract form data related to user authentication?
+- OAuth2PasswordRequestForm : This can be imported from the security submodule of FastAPI to use in an OAuth2 scheme.
+
+5. True or False: You can authenticate a user by decrypting a hashed password and comparing it to an inputted password.
+- False: Hashed passwords cannot be decoded; the plaintext input must be hashed using the same algorithm, and those must be compared.
+
+6. How can you allow authentication to persist throughout a web session?
+- Set a cookie: This cookie will persist throughout a session.
+
+7. What is the "sub" in a JSON Web Token?
+- The main key to identify and encrypt web tokens with. 
