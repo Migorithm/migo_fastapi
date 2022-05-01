@@ -11,8 +11,6 @@ class TestAuth(unittest.TestCase):
     def tearDown(self) -> None:
         self.app.cookies.clear()
     
-    
-    
     def test_index(self):
         response = self.app.get('/')
         self.assertEqual(200,response.status_code)
@@ -67,6 +65,7 @@ class TestAuth(unittest.TestCase):
         register_res = self.app.post('/register',data=user_data)
         self.assertEqual(400,register_res.status_code)
 
+    
 
 if __name__ =="__main__":
     unittest.main()
