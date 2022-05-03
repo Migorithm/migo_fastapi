@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory=BASEDIR+"/templates")
 app = FastAPI()
 
 
-manager = LoginManager(secret=os.getenv("SECRET"),token_url='/login',use_cookie=True)
+manager = LoginManager(secret="SECRET",token_url='/login',use_cookie=True)
 manager.cookie_name="AUTH"  #This is given in Request.cookies : dict
 @manager.user_loader() #How are you going to load a user object?
 def user_loader(username):
