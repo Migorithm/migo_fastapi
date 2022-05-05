@@ -5,13 +5,12 @@ Path operations related to your users.
 You can think of APIRoter as a mini FastAPI class.
 """
 
-from fastapi import APIRouter,Depends, HTTPException
-from ..dependedncies import get_token_header
+from fastapi import APIRouter, HTTPException
+
 
 router = APIRouter(
     prefix='/items',
     tags =["items"],
-    dependencies=[Depends(get_token_header)], 
     responses={404: {"description":"Not found"}}
 )
 
